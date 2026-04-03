@@ -1,0 +1,177 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: gallery
+    // Document ID: auto-generated
+    // Fields:
+    //   - url: string (required, uri format) - The URL of the image.
+    //   - caption: string (optional) - An optional caption for the image.
+    //   - createdAt: timestamp (required) - The timestamp when the image was uploaded.
+    //   - authorUid: string (required) - The UID of the user who uploaded the image.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "pzhumash@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidService(data) {
+      return data.keys().hasAll(['name', 'phone', 'authorUid', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 30 &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.authorUid is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidGalleryImage(data) {
+      return data.keys().hasAll(['url', 'createdAt']) &&
+             data.keys().hasOnly(['url', 'caption', 'createdAt', 'authorUid', 'categoryId']) &&
+             isValidUrl(data.url) &&
+             data.createdAt is timestamp &&
+             (!('categoryId' in data) || data.categoryId is string) &&
+             (!('caption' in data) || (data.caption is string && data.caption.size() < 1000)) &&
+             (!('authorUid' in data) || data.authorUid is string);
+    }
+
+    function isValidGalleryCategory(data) {
+      return data.keys().hasAll(['name', 'icon', 'order']) &&
+             data.keys().hasOnly(['name', 'icon', 'order', 'authorUid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.icon is string &&
+             data.order is number &&
+             (!('authorUid' in data) || data.authorUid is string);
+    }
+
+    function isTenant(userId) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(userId)).data.role == 'tenant';
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['id', 'name', 'status', 'type']) &&
+             data.status in ['available', 'occupied', 'maintenance'] &&
+             data.type in ['rentable', 'common'];
+    }
+
+    function isChatMember() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isChatMember == true;
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (
+                      (request.auth.uid == userId && areImmutableFieldsUnchanged(['role', 'isChatMember', 'email'])) || 
+                      isAdmin()
+                    );
+    }
+
+    match /chat_messages/{msgId} {
+      allow read: if isAuthenticated() && (isChatMember() || isAdmin());
+      allow create: if isAuthenticated() && (isChatMember() || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.tenantUid || isAdmin());
+      allow create: if isAuthenticated() && 
+                    request.resource.data.tenantUid == request.auth.uid &&
+                    request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    match /maintenance/{maintId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /gallery/{imageId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidGalleryImage(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /gallery_categories/{catId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() && isValidGalleryCategory(request.resource.data);
+    }
+
+    match /services_marketplace/{serviceId} {
+      allow read: if isAuthenticated() && (resource.data.status == 'approved' || resource.data.authorUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && 
+                    request.resource.data.authorUid == request.auth.uid && 
+                    request.resource.data.status == 'pending' &&
+                    isValidService(request.resource.data);
+      allow update: if isAuthenticated() && (
+                      (isAdmin() && isValidService(request.resource.data)) || 
+                      (resource.data.authorUid == request.auth.uid && request.resource.data.status == 'pending' && isValidService(request.resource.data))
+                    );
+      allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+    }
+
+    match /service_reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+    }
+
+    match /cleaning_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.tenantUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (isTenantRole() || isAdmin()) && 
+                    request.resource.data.tenantUid == request.auth.uid &&
+                    request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && (
+                      isAdmin() || 
+                      (resource.data.tenantUid == request.auth.uid && resource.data.status == 'pending' && request.resource.data.status == 'pending')
+                    );
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    function isTenantRole() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tenant';
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

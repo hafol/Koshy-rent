@@ -1,0 +1,216 @@
+{
+  "entities": {
+    "GalleryImage": {
+      "title": "Gallery Image",
+      "description": "An image uploaded to the gallery.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "categoryId": { "type": "string" },
+        "caption": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["url", "createdAt", "categoryId"]
+    },
+    "GalleryCategory": {
+      "title": "Gallery Category",
+      "description": "A category for gallery images.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "order": { "type": "integer" },
+        "authorUid": { "type": "string" }
+      },
+      "required": ["name", "icon", "order"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "A room in the property.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "area": { "type": "number" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["available", "occupied", "maintenance"] },
+        "type": { "type": "string", "enum": ["rentable", "common"] },
+        "currentTenantUid": { "type": "string" }
+      },
+      "required": ["id", "name", "status", "type"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A rental booking record.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "tenantUid": { "type": "string" },
+        "tenantEmail": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "active", "completed", "cancelled"] },
+        "totalPrice": { "type": "number" },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid"] }
+      },
+      "required": ["roomId", "tenantUid", "status", "startDate", "endDate"]
+    },
+    "Maintenance": {
+      "title": "Maintenance",
+      "description": "A maintenance or repair record.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "in-progress", "completed"] },
+        "scheduledDate": { "type": "string", "format": "date-time" },
+        "cost": { "type": "number" },
+        "assignedStaffId": { "type": "string" }
+      },
+      "required": ["roomId", "status", "scheduledDate"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Property management staff member.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["cleaner", "security", "manager", "technician"] },
+        "status": { "type": "string", "enum": ["active", "on-leave", "inactive"] },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["name", "role", "status"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "A business expense record.",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "enum": ["utility", "maintenance", "staff", "marketing", "other"] },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" }
+      },
+      "required": ["category", "amount", "date"]
+    },
+    "ServiceMarketplace": {
+      "title": "Service Marketplace",
+      "description": "A service offered by a user.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "activity": { "type": "string" },
+        "photoUrl": { "type": "string", "format": "uri" },
+        "authorUid": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "authorUid", "status", "createdAt"]
+    },
+    "ServiceReview": {
+      "title": "Service Review",
+      "description": "A review for a service.",
+      "type": "object",
+      "properties": {
+        "serviceId": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["serviceId", "authorUid", "rating", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Extended user profile data.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "dob": { "type": "string", "format": "date" },
+        "phone": { "type": "string" },
+        "iin": { "type": "string" },
+        "activity": { "type": "string" },
+        "role": { "type": "string", "enum": ["tenant", "admin"] },
+        "isChatMember": { "type": "boolean" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string", "format": "uri" }
+      },
+      "required": ["fullName", "email"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "A message in the residents chat.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "photoUrl": { "type": "string", "format": "uri" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "authorName", "createdAt"]
+    },
+    "CleaningRequest": {
+      "title": "Cleaning Request",
+      "description": "A request for room cleaning service.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "roomName": { "type": "string" },
+        "tenantUid": { "type": "string" },
+        "tenantName": { "type": "string" },
+        "phone": { "type": "string" },
+        "cleaningType": { "type": "string", "enum": ["regular", "deep"] },
+        "area": { "type": "number" },
+        "basePrice": { "type": "number" },
+        "extraServices": { "type": "array", "items": { "type": "string" } },
+        "extraPrice": { "type": "string" },
+        "totalPrice": { "type": "number" },
+        "photos": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "specialAreas": { "type": "string" },
+        "scheduledDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "tenantUid", "cleaningType", "scheduledDate", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app notification for users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["cleaning_reminder", "booking_update", "system"] },
+        "link": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "gallery": { "schema": "GalleryImage", "description": "Gallery images." },
+    "gallery_categories": { "schema": "GalleryCategory", "description": "Gallery categories." },
+    "rooms": { "schema": "Room", "description": "Property rooms." },
+    "bookings": { "schema": "Booking", "description": "Rental bookings." },
+    "maintenance": { "schema": "Maintenance", "description": "Maintenance records." },
+    "staff": { "schema": "Staff", "description": "Staff members." },
+    "expenses": { "schema": "Expense", "description": "Business expenses." },
+    "services_marketplace": { "schema": "ServiceMarketplace", "description": "User-provided services." },
+    "service_reviews": { "schema": "ServiceReview", "description": "Reviews for services." },
+    "users": { "schema": "UserProfile", "description": "User profiles and roles." },
+    "chat_messages": { "schema": "ChatMessage", "description": "Residents chat messages." },
+    "cleaning_requests": { "schema": "CleaningRequest", "description": "Cleaning service requests." },
+    "notifications": { "schema": "Notification", "description": "User notifications." }
+  }
+}
