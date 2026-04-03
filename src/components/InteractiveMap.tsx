@@ -302,6 +302,13 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
   const [allActiveBookings, setAllActiveBookings] = useState<any[]>([]);
   const [adminTenantEmail, setAdminTenantEmail] = useState("");
   const [bookingType, setBookingType] = useState<"room" | "floor" | "building">("room");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPath, setEditingPath] = useState<string | null>(null);
+  const [isPathEditorVisible, setIsPathEditorVisible] = useState(true);
+  const [editableRooms, setEditableRooms] = useState(ROOMS_DATA);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  const isAdmin = user?.email === "pzhumash@gmail.com";
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const FLOOR_PRICE = 476000;
   const BUILDING_PRICE = 1020000;
@@ -401,21 +408,30 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
   }, []);
 
   useEffect(() => {
-    if (selectedRoom) {
-      const q = query(collection(db, "bookings"), where("roomId", "==", selectedRoom.id), where("status", "in", ["active", "pending"]));
+    if (selectedRoomIds.length > 0 || bookingType === "floor" || bookingType === "building") {
+      const q = query(collection(db, "bookings"), where("status", "in", ["active", "pending", "pending_review"]));
       const unsubBookings = onSnapshot(q, (snap) => {
-        const bookings = snap.docs.map(doc => ({
-          ...doc.data(),
-          startDate: (doc.data().startDate as any)?.toDate?.() || new Date(doc.data().startDate),
-          endDate: (doc.data().endDate as any)?.toDate?.() || new Date(doc.data().endDate)
-        }));
+        let relevantRoomIds = selectedRoomIds;
+        if (bookingType === "floor") {
+          relevantRoomIds = editableRooms.filter(r => r.floor === floor && r.type === "rentable").map(r => r.id);
+        } else if (bookingType === "building") {
+          relevantRoomIds = editableRooms.filter(r => r.type === "rentable").map(r => r.id);
+        }
+
+        const bookings = snap.docs
+          .map(doc => ({
+            ...doc.data(),
+            startDate: (doc.data().startDate as any)?.toDate?.() || new Date(doc.data().startDate),
+            endDate: (doc.data().endDate as any)?.toDate?.() || new Date(doc.data().endDate)
+          }))
+          .filter(b => relevantRoomIds.includes(b.roomId));
         setRoomBookings(bookings);
       });
       return () => unsubBookings();
     } else {
       setRoomBookings([]);
     }
-  }, [selectedRoom]);
+  }, [selectedRoomIds, bookingType, floor, editableRooms]);
 
   const isDateDisabled = (date: Date) => {
     return roomBookings.some(b => 
@@ -528,14 +544,6 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
       setLoading(false);
     }
   };
-
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingPath, setEditingPath] = useState<string | null>(null);
-  const [isPathEditorVisible, setIsPathEditorVisible] = useState(true);
-  const [editableRooms, setEditableRooms] = useState(ROOMS_DATA);
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-  const isAdmin = user?.email === "pzhumash@gmail.com";
-  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -707,7 +715,7 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
         <div style={{ 
           background: "#fff", 
           borderRadius: 32, 
-          padding: 40, 
+          padding: isMobile ? 16 : 40, 
           boxShadow: "0 20px 50px rgba(27,67,50,0.1)",
           position: "relative",
           aspectRatio: "1/1",
@@ -790,7 +798,7 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
                         fill={isSelected ? "#fff" : "#e63946"}
                         style={{ fontSize: 10, fontWeight: 700 }}
                       >
-                        {lang === 'ru' ? "ЗАНЯТО" : "БОС ЕМЕС"}
+                        {lang === 'ru' ? "ЗАНЯТО С" : "БОС ЕМЕС"}
                       </text>
                       {activeBooking && (
                         <text
@@ -800,7 +808,7 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
                           fill={isSelected ? "rgba(255,255,255,0.8)" : "#666"}
                           style={{ fontSize: 8, fontWeight: 500 }}
                         >
-                          {format(activeBooking.startDate?.toDate?.() || new Date(activeBooking.startDate), "dd.MM")} - {format(activeBooking.endDate?.toDate?.() || new Date(activeBooking.endDate), "dd.MM")}
+                          {format(activeBooking.startDate?.toDate?.() || new Date(activeBooking.startDate), "dd.MM.yy")} ДО {format(activeBooking.endDate?.toDate?.() || new Date(activeBooking.endDate), "dd.MM.yy")}
                         </text>
                       )}
                     </g>
@@ -888,7 +896,7 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
               style={{
                 background: "#fff",
                 borderRadius: 24,
-                padding: 32,
+                padding: isMobile ? 20 : 32,
                 boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
                 border: "1px solid rgba(27,67,50,0.1)"
               }}
@@ -1116,9 +1124,27 @@ export function InteractiveMap({ user, userProfile, lang = 'ru', onBookingSucces
                     : (
                       <div>
                         <p style={{ fontWeight: 600, color: "#e63946", marginBottom: 8 }}>
-                          {lang === 'ru' ? "Помещение в аренде" : "Бөлме жалға берілген"}
+                          {lang === 'ru' ? "Комната или этаж в аренде" : "Бөлме немесе қабат жалға берілген"}
                         </p>
-                        <p>{lang === 'ru' ? "Свяжитесь с службой поддержки для уточнения деталей." : "Толығырақ ақпарат алу үшін қолдау қызметіне хабарласыңыз."}</p>
+                        <p style={{ marginBottom: 12 }}>{lang === 'ru' ? "Свяжитесь со службой поддержки для уточнения деталей." : "Толығырақ ақпарат алу үшін қолдау қызметіне хабарласыңыз."}</p>
+                        <a 
+                          href="tel:+77053701298" 
+                          style={{ 
+                            display: "inline-flex", 
+                            alignItems: "center", 
+                            gap: 8, 
+                            padding: "10px 20px", 
+                            background: "#fff", 
+                            color: GREEN, 
+                            borderRadius: 100, 
+                            textDecoration: "none", 
+                            fontWeight: 600,
+                            border: `1px solid ${GREEN}`
+                          }}
+                        >
+                          <Phone size={16} />
+                          +7 (705) 370 12 98
+                        </a>
                       </div>
                     )}
                 </div>

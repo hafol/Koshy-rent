@@ -990,7 +990,18 @@ export default function App() {
   const [isGalleryLoading, setIsGalleryLoading] = useState(true);
   const [galleryCategories, setGalleryCategories] = useState<any[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [showMarquee, setShowMarquee] = useState(true);
+  const [showMarquee, setShowMarquee] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hideMarquee') !== 'true';
+    }
+    return true;
+  });
+
+  const handleHideMarquee = () => {
+    setShowMarquee(false);
+    localStorage.setItem('hideMarquee', 'true');
+  };
+
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
@@ -1368,7 +1379,7 @@ export default function App() {
       </section>
 
       {/* MARQUEE */}
-      {showMarquee && <Marquee lang={lang} t={t} onHide={() => setShowMarquee(false)}/>}
+      {showMarquee && <Marquee lang={lang} t={t} onHide={handleHideMarquee}/>}
 
       {/* RENTAL OPTIONS */}
       <section id="rental" style={{ padding: "7rem 2rem", position: "relative", zIndex: 1 }}>
